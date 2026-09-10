@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+certificates/
+temp_cert_*.png
+test_certificate.png
+test_certificate_*.png
+certificate.png
+data.csv
