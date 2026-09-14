@@ -1,6 +1,6 @@
-# AWS SGB Certificate Dispatcher
+# AWS SBG Certificate Dispatcher
 
-A Python-based automated certificate generator and email dispatcher designed for the AWS Student Builder Group (SGB). This tool takes a base certificate template, dynamically overlays student names from a CSV file, and dispatches them via email with a personalized HTML body.
+A Python-based automated certificate generator and email dispatcher designed for the AWS Student Builder Group (SBG). This tool takes a base certificate template, dynamically overlays student names from a CSV file, and dispatches them via email with a personalized HTML body.
 
 ## Features
 

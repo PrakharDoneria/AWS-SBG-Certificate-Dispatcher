@@ -11,7 +11,7 @@ def main():
     # Load variables from .env file
     load_dotenv()
     
-    print("AWS SGB Certificate Dispatcher")
+    print("AWS SBG Certificate Dispatcher")
     print("1. Test (don't mail just show certificate)")
     print("2. Send all")
     choice = input("Enter your choice (1/2): ")
