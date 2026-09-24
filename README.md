@@ -25,6 +25,12 @@ Start the server:
 python main.py
 ```
 
+Start the production server with Gunicorn:
+
+```bash
+gunicorn --bind 0.0.0.0:5000 main:app
+```
+
 Open `http://127.0.0.1:5000`.
 
 The private workspace is available at `/sbg-admin` and uses the client-side key:

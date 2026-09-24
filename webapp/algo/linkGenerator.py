@@ -1,6 +1,6 @@
 from itsdangerous import BadSignature, URLSafeSerializer
 
-DEFAULT_SECRET_KEY = "aws-sbg-certificate-verification-v1"
+DEFAULT_SECRET_KEY = "9ce269b4-0be4-494e-a539-4af481654de5"
 
 
 def generate_certificate_link(base_url, student_name, date_of_issue, event_name, secret_key):
