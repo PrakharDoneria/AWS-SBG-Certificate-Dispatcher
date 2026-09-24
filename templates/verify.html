@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Verify certificate{% endblock %}
+{% block content %}
+<section class="center-page verify-page">
+  {% if verification.valid %}
+    <div class="verified-mark">✓</div>
+    <div class="eyebrow">Certificate verification</div>
+    <h1>Certificate<br><span class="accent">verified.</span></h1>
+    <p>This certificate was issued by the AWS Student Builder Group community.</p>
+    <div class="verify-details">
+      <span>Recipient</span><b>{{ verification.data.name }}</b>
+      <span>Event</span><b>{{ verification.data.event }}</b>
+      <span>Issued</span><b>{{ verification.data.date }}</b>
+    </div>
+  {% else %}
+    <div class="verified-mark invalid-mark">!</div>
+    <div class="eyebrow">Certificate verification</div>
+    <h1>Certificate<br><span class="invalid-accent">not valid.</span></h1>
+    <p>{{ verification.error }}</p>
+  {% endif %}
+  <small>This stateless verification page uses a signed certificate token and no database.</small>
+</section>
+{% endblock %}

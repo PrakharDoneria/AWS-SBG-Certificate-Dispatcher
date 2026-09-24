@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SBG Certificate Dispatcher{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/assets/icons/awssbg-logo.svg" alt="AWS SBG"><span>Certificate<br><b>Dispatcher</b></span></a>
+    <nav><a href="/about">About</a><a href="/sbg-admin">Admin workspace <span class="arrow">↗</span></a></nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <footer><span>SBG / CERTIFICATE DISPATCHER</span><span>Community-built tooling for community work.</span></footer>
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

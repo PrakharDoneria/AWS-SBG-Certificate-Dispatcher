@@ -1,0 +1,103 @@
+.compose-main select {
+  border: 1px solid #cbd3d8;
+  background: #fff;
+  color: #18232d;
+  font: 15px Ember;
+  padding: 14px;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.modal {
+  align-items: center;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 180ms ease;
+  z-index: 20;
+}
+
+.modal[aria-hidden="false"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-backdrop {
+  background: rgba(24, 35, 45, .72);
+  inset: 0;
+  position: absolute;
+}
+
+.modal-content {
+  background: #f7f8f9;
+  box-shadow: 0 18px 60px rgba(24, 35, 45, .28);
+  max-height: 90vh;
+  max-width: min(900px, calc(100vw - 32px));
+  overflow: auto;
+  padding: 34px;
+  position: relative;
+  width: 900px;
+  z-index: 1;
+}
+
+.modal-content h2 {
+  font-size: 32px;
+  font-weight: 400;
+  margin: 12px 0 24px;
+}
+
+.modal-content > img {
+  background: #25384a;
+  display: block;
+  max-height: 65vh;
+  object-fit: contain;
+  width: 100%;
+}
+
+.modal-content > small {
+  color: #71808a;
+  display: block;
+  margin-top: 14px;
+}
+
+.modal-close {
+  background: transparent;
+  border: 0;
+  color: #52616d;
+  cursor: pointer;
+  font-size: 30px;
+  line-height: 1;
+  position: absolute;
+  right: 22px;
+  top: 18px;
+}
+
+@media (max-width: 720px) {
+  .modal-content {
+    padding: 24px;
+  }
+}
+
+.certificate-preview .rendered-certificate {
+  filter: none;
+  height: 100%;
+  object-fit: contain;
+  opacity: 1;
+  width: 100%;
+}
+
+.invalid-mark {
+  background: #c0392b;
+}
+
+.invalid-accent {
+  color: #c0392b;
+  font-style: italic;
+}

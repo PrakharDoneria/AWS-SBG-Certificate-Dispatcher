@@ -1,5 +1,9 @@
 import os
+from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
+
+FONT_PATH = Path(__file__).resolve().parent / "fonts" / "AmazonEmberDisplay_LtIt.ttf"
 
 def create_certificate(name, template_path="certificate.png", output_path="output.png"):
     if not os.path.exists(template_path):
@@ -18,9 +22,9 @@ def create_certificate(name, template_path="certificate.png", output_path="outpu
     # Try to load a font, fallback to default if not found
     try:
         # Increase font size to fit the bounding box appropriately
-        font = ImageFont.truetype("arial.ttf", 120)
+        font = ImageFont.truetype(str(FONT_PATH), 120)
     except IOError:
-        print("Warning: arial.ttf not found. Using default font.")
+        print("Warning: project font not found. Using the Pillow default font.")
         font = ImageFont.load_default()
         
     # Get text bounding box to center it

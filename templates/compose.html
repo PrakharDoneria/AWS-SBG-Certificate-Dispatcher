@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Compose certificates{% endblock %}
+{% block content %}
+<section class="form-page wide protected">
+  <div class="eyebrow">SBG admin / send certificates</div>
+  <div class="page-title-row">
+    <div>
+      <h1>Make it <span class="accent">personal.</span></h1>
+      <p>Set the details once. Every recipient gets their own certificate and verification link.</p>
+    </div>
+    <a class="button quiet" href="/sbg-admin/dashboard">← Dashboard</a>
+  </div>
+
+  <form id="compose-form" class="compose-grid" enctype="multipart/form-data">
+    <div class="compose-main">
+      <label>
+        Certificate template
+        <input name="certificate" id="certificate" type="file" accept="image/*" required>
+      </label>
+      <div class="upload-note">The preview uses the exact font, bounding box, and centering logic from <b>certificate.py</b>.</div>
+
+      <label>
+        Mailing list
+        <select name="saved_list" id="saved-list-select">
+          <option value="">Choose a saved list or upload a new CSV</option>
+        </select>
+        <input name="list" id="list" type="file" accept=".csv">
+      </label>
+      <div class="upload-note"><a href="/api/sample-csv">Download sample.data.csv</a> and replace the mock row with your real recipients.</div>
+
+      <div class="two-col">
+        <label>Email title<input name="subject" value="Your SBG certificate is here" required></label>
+        <label>Event name<input name="event_name" value="AWS Student Builder Group Certificate" required></label>
+      </div>
+
+      <label>
+        Email body
+        <textarea name="body" rows="12" required>Hi {{first_name}},
+
+Congratulations on your achievement. Your certificate is attached.
+
+With appreciation,
+The AWS Student Builder Group</textarea>
+      </label>
+
+      <input type="hidden" name="sender_email">
+      <input type="hidden" name="sender_password">
+      <input type="hidden" name="sender_name">
+      <div class="form-actions">
+        <button class="button secondary" id="preview-certificate" type="button">Preview certificate <span>↗</span></button>
+        <button class="button primary" type="submit">Send certificates <span>→</span></button>
+      </div>
+      <small id="send-result"></small>
+    </div>
+
+    <aside class="preview-panel">
+      <div class="preview-label">Certificate preview <span>DEMO</span></div>
+      <div class="certificate-preview" id="certificate-preview">
+        <img src="/assets/icons/trophy.svg" alt="">
+        <strong>Prakhar Doneria</strong>
+        <small>your rendered certificate will appear here</small>
+      </div>
+      <div class="preview-label">Delivery note</div>
+      <p>Each email includes a unique verification link at the bottom. Credentials and lists are read from this session only.</p>
+    </aside>
+  </form>
+</section>
+
+<div class="modal" id="certificate-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close-modal></div>
+  <section class="modal-content" role="dialog" aria-modal="true" aria-labelledby="certificate-modal-title">
+    <button class="modal-close" type="button" data-close-modal aria-label="Close preview">×</button>
+    <div class="eyebrow">Rendered certificate / demo</div>
+    <h2 id="certificate-modal-title">Prakhar Doneria</h2>
+    <img id="certificate-modal-image" src="" alt="Rendered certificate preview">
+    <small id="preview-result">Upload a certificate template to generate the exact preview.</small>
+  </section>
+</div>
+{% endblock %}

@@ -1,53 +1,69 @@
 # AWS SBG Certificate Dispatcher
 
-A Python-based automated certificate generator and email dispatcher designed for the AWS Student Builder Group (SBG). This tool takes a base certificate template, dynamically overlays student names from a CSV file, and dispatches them via email with a personalized HTML body.
+A community-built web app for generating personalized certificates and sending them through Gmail. It is made by SBGL **Prakhar Doneria** for the public and is not offered by AWS or its affiliates.
 
 ## Features
 
-- **Automated Generation:** Uses `Pillow` to generate customized certificates by writing the student's name into a specified bounding box on the template.
-- **Bulk Email Dispatching:** Sends personalized HTML emails with the generated certificate attached using Gmail's SMTP server.
-- **Testing Mode:** Easily test certificate generation locally without sending out any emails.
-- **Automatic Organization:** Saves test certificates to `certificates/test/` and dispatched certificates to `certificates/dispatch/`.
-- **Modular Codebase:** Code logic is cleanly separated into image generation (`certificate.py`), email handling (`email_sender.py`), and a main coordinator script (`main.py`).
+- Render certificate names with Pillow and the configured certificate bounding box.
+- Preview the real rendered certificate before sending.
+- Upload a CSV or select a mailing list already saved in the browser.
+- Send personalized HTML email with a unique verification link per recipient.
+- Verify certificates with signed, stateless links without a database.
+- Keep Gmail credentials and mailing lists in browser local storage; they are not stored by the server.
 
-## Setup Instructions
+## Setup
 
-### 1. Prerequisites
-Ensure you have Python 3 installed on your machine.
+Install dependencies:
 
-### 2. Install Dependencies
-Install the required python packages from `requirements.txt`:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Environment Variables
-Create a `.env` file in the root directory (you can copy the structure from the provided `.env` if one exists) and populate it with your email credentials and preferences:
-```env
-GMAIL_USER=your_email@gmail.com
-GMAIL_APP_PASSWORD=your_app_password
-SENDER_NAME=Prakhar Doneria
-DEFAULT_SUBJECT=AWS Cloud & DSA Coding Challenge 2026 Certificate
-```
-*(Note: To get a Gmail App Password, you must enable 2-Step Verification on your Google Account and generate an app password under Security settings.)*
-
-### 4. Provide Required Files
-Ensure the following files are present in the project root:
-- **`certificate.png`**: The blank certificate image template.
-- **`body.html`**: The HTML template used for the email body. It supports the following variables: `{{full_name}}`, `{{first_name}}`, `{{event_name}}`, and `{{issue_date}}`.
-- **`data.csv`**: A CSV file containing the recipients. It must have exactly two columns: `name` and `email`.
-
-*(If you only have `sample.data.csv`, make sure to rename it to `data.csv` or copy its contents into a new `data.csv` file before running the script.)*
-
-## Usage
-
-Run the main application script:
+Start the server:
 
 ```bash
 python main.py
 ```
 
-Upon running, you will be prompted with a choice:
+Open `http://127.0.0.1:5000`.
 
-1. **Test (don't mail just show certificate):** Generates a certificate for the first person in your `data.csv` file, displays it locally, and saves it in `certificates/test/` so you can verify the alignment and font size.
-2. **Send all:** Iterates through every row in your `data.csv`, generates the personalized certificate, dynamically populates the email template, sends the email via Gmail, and archives the certificate permanently in `certificates/dispatch/`.
+The private workspace is available at `/sbg-admin` and uses the client-side key:
+
+```text
+aws-sbgl-certs
+```
+
+Use a Gmail App Password rather than a normal Gmail password. Credentials are entered in the browser and kept only in local storage for that browser.
+
+## Project Structure
+
+```text
+certificate.py          Pillow certificate rendering
+email_sender.py         Gmail SMTP delivery
+main.py                 Application entry point
+webapp/routes.py        Flask pages and API routes
+webapp/services.py      CSV parsing, previews, dispatch, signed links
+static/js/              Browser modules for auth, lists, home, and compose
+static/css/             Global and component styles
+templates/              Jinja page templates
+fonts/                  Amazon Ember project fonts
+icons/                  AWS SBG project icons
+```
+
+## Required Files
+
+- `certificate.png`: blank certificate template.
+- `body.html`: optional reusable email template with `{{full_name}}`, `{{first_name}}`, `{{event_name}}`, and `{{issue_date}}` placeholders.
+- `sample.data.csv`: example CSV with `name,email` columns.
+
+## Stateless Verification
+
+The dispatcher signs the recipient name, event, and issue date with `webapp/algo/linkGenerator.py`. The resulting token is appended to `/verify/<token>`. The verification page decodes and validates the token directly, so no certificate database is required.
+
+For production deployments, replace `DEFAULT_SECRET_KEY` in `webapp/algo/linkGenerator.py` with a private, stable deployment secret. Changing it invalidates previously generated links.
+
+## Community
+
+- Project: [PrakharDoneria/AWS-SBG-Certificate-Dispatcher](https://github.com/PrakharDoneria/AWS-SBG-Certificate-Dispatcher)
+- Maintainer: [Prakhar Doneria](https://github.com/PrakharDoneria)
+- Sponsorship: [Sponsor maintenance](https://github.com/sponsors/PrakharDoneria)
