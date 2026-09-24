@@ -1,5 +1,23 @@
 import { CREDENTIALS_KEY, readLists } from './storage.js';
 
+const RESUME_KEY = 'sbg-dispatch-resume';
+
+function dataUrlToFile(dataUrl, name) {
+  const [header, encoded] = dataUrl.split(',');
+  const mime = header.match(/data:(.*?);base64/)[1];
+  const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+  return new File([bytes], name, { type: mime });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function renderExactPreview(file) {
   const form = new FormData();
   form.append('certificate', file);
@@ -18,7 +36,28 @@ export function initCompose() {
   const listSelect = document.getElementById('saved-list-select');
   const listInput = document.getElementById('list');
   const modal = document.getElementById('certificate-modal');
+  const result = document.getElementById('send-result');
+  const resumeButton = document.getElementById('resume-dispatch');
   let previewImage = '';
+  let resumeState = null;
+  let savedResumeState = null;
+
+  function loadResumeState() {
+    try { savedResumeState = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null'); }
+    catch { savedResumeState = null; }
+    resumeButton.hidden = !savedResumeState;
+  }
+
+  loadResumeState();
+
+  resumeButton.addEventListener('click', () => {
+    if (!savedResumeState) return;
+    resumeState = savedResumeState;
+    document.querySelector('[name="subject"]').value = resumeState.subject;
+    document.querySelector('[name="event_name"]').value = resumeState.eventName;
+    document.querySelector('[name="body"]').value = resumeState.body;
+    result.textContent = 'Saved recipients loaded. Send to continue the interrupted dispatch.';
+  });
 
   certificate.addEventListener('change', async () => {
     if (!certificate.files[0]) return;
@@ -43,23 +82,49 @@ export function initCompose() {
     const data = new FormData(form);
     const selected = listSelect.value ? readLists()[Number(listSelect.value)] : null;
     if (selected) data.set('list', new File([selected.content], selected.name, { type: 'text/csv' }));
+    if (resumeState) {
+      data.set('list', new File([resumeState.remainingCsv], 'remaining-recipients.csv', { type: 'text/csv' }));
+      data.set('certificate', dataUrlToFile(resumeState.certificateDataUrl, resumeState.certificateName));
+    }
     data.set('sender_email', credentials.email || '');
     data.set('sender_password', credentials.password || '');
     data.set('sender_name', credentials.name || 'Prakhar Doneria');
-    const result = document.getElementById('send-result');
-    let progress = 8;
-    result.innerHTML = `<span class="dispatch-spinner" aria-hidden="true"></span> Dispatching... ${progress}%`;
-    const progressTimer = setInterval(() => {
-      progress = Math.min(progress + 7, 92);
-      result.innerHTML = `<span class="dispatch-spinner" aria-hidden="true"></span> Dispatching... ${progress}%`;
-      document.title = `Dispatching... ${progress}% | SBG Dispatcher`;
-    }, 700);
+    result.innerHTML = '<span class="dispatch-spinner" aria-hidden="true"></span> Sending certificates...';
+    document.title = 'Sending certificates | SBG Dispatcher';
     try {
       const response = await fetch('/api/send', { method: 'POST', body: data });
-      const responseData = await response.json();
-      clearInterval(progressTimer);
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch {
+        throw new Error(`The dispatcher returned an invalid response (HTTP ${response.status}).`);
+      }
       document.title = response.ok ? 'Dispatch complete | SBG Dispatcher' : 'Dispatch failed | SBG Dispatcher';
-      result.textContent = response.ok ? `Sent ${responseData.sent} certificate${responseData.sent === 1 ? '' : 's'}.` : responseData.error;
-    } catch { clearInterval(progressTimer); document.title = 'Dispatch failed | SBG Dispatcher'; result.textContent = 'Could not reach the dispatcher.'; }
+      if (response.ok && responseData.interrupted) {
+        const certificateFile = data.get('certificate');
+        if (!(certificateFile instanceof File)) throw new Error('The certificate file was unavailable while saving the resume state.');
+        localStorage.setItem(RESUME_KEY, JSON.stringify({
+          remainingCsv: responseData.remaining_csv,
+          certificateDataUrl: await fileToDataUrl(certificateFile),
+          certificateName: certificateFile.name,
+          subject: data.get('subject'),
+          eventName: data.get('event_name'),
+          body: data.get('body'),
+        }));
+        resumeState = JSON.parse(localStorage.getItem(RESUME_KEY));
+        resumeButton.hidden = false;
+        result.textContent = `${responseData.message} ${responseData.sent} sent. The remaining recipients are saved in this browser.`;
+      } else if (response.ok) {
+        localStorage.removeItem(RESUME_KEY);
+        resumeState = null;
+        resumeButton.hidden = true;
+        result.textContent = `Sent ${responseData.sent} of ${responseData.total} certificate${responseData.total === 1 ? '' : 's'} (100%).`;
+      } else {
+        throw new Error(responseData.error || `The dispatcher returned HTTP ${response.status}.`);
+      }
+    } catch (error) {
+      document.title = 'Dispatch failed | SBG Dispatcher';
+      result.textContent = error.message || 'Could not complete the dispatch.';
+    }
   });
 }

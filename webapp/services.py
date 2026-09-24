@@ -2,8 +2,10 @@ import base64
 import csv
 import html
 import io
+import os
 import secrets
 import tempfile
+import time
 from datetime import date
 from pathlib import Path
 
@@ -14,6 +16,8 @@ from email_sender import send_email
 from webapp.algo import DEFAULT_SECRET_KEY, generate_certificate_link
 
 ROOT = Path(__file__).resolve().parent.parent
+PUBLIC_BASE_URL = os.getenv("CERTIFICATE_PUBLIC_URL", "https://aws-sbg-ieccet.antideploy.com")
+EMAIL_DELAY_SECONDS = float(os.getenv("SGB_EMAIL_DELAY_SECONDS", "2"))
 
 
 def parse_recipients(file_storage):
@@ -38,6 +42,14 @@ def body_to_html(body):
     return "".join(f"<p style='margin:0 0 16px;line-height:1.6'>{html.escape(paragraph).replace(chr(10), '<br>')}</p>" for paragraph in paragraphs)
 
 
+def recipients_to_csv(rows):
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["name", "email"])
+    writer.writeheader()
+    writer.writerows({"name": row.get("name", ""), "email": row.get("email", "")} for row in rows)
+    return output.getvalue()
+
+
 def render_preview(template_storage):
     with tempfile.TemporaryDirectory(prefix="sbg-preview-") as temp_dir:
         template_path = Path(temp_dir) / "template.png"
@@ -51,11 +63,14 @@ def render_preview(template_storage):
 def dispatch_certificates(credentials, details, list_file, certificate_file):
     rows = parse_recipients(list_file)
     sent, failed = 0, []
+    remaining_csv = ""
+    interrupted = False
+    interruption_message = ""
     issued = date.today().strftime("%B %d, %Y")
     with tempfile.TemporaryDirectory(prefix="sbg-dispatch-") as temp_dir:
         template_path = Path(temp_dir) / "template.png"
         certificate_file.save(template_path)
-        for row in rows:
+        for index, row in enumerate(rows):
             name, email = row.get("name", "").strip(), row.get("email", "").strip()
             if not name or not email:
                 continue
@@ -68,7 +83,7 @@ def dispatch_certificates(credentials, details, list_file, certificate_file):
             html_body = html_body.replace("{{full_name}}", html.escape(name)).replace("{{first_name}}", html.escape(name.split()[0]))
             html_body = html_body.replace("{{event_name}}", html.escape(details["event_name"])).replace("{{issue_date}}", issued)
             link = generate_certificate_link(
-                f"{request.url_root.rstrip('/')}/verify",
+                f"{PUBLIC_BASE_URL.rstrip('/')}/verify",
                 name,
                 issued,
                 details["event_name"],
@@ -78,6 +93,19 @@ def dispatch_certificates(credentials, details, list_file, certificate_file):
             html_body += '<p style="margin:24px 0 0"><img src="cid:certificate-image" alt="Your certificate" style="display:block;max-width:100%;height:auto"></p>'
             if send_email(credentials["email"], credentials["password"], credentials["name"], email, details["subject"], html_body, str(output_path)):
                 sent += 1
+                if index < len(rows) - 1:
+                    time.sleep(EMAIL_DELAY_SECONDS)
             else:
                 failed.append(email)
-    return {"sent": sent, "failed": failed}
+                interrupted = True
+                interruption_message = f"Delivery stopped after an error sending to {email}."
+                remaining_csv = recipients_to_csv(rows[index:])
+                break
+    return {
+        "sent": sent,
+        "total": len(rows),
+        "failed": failed,
+        "interrupted": interrupted,
+        "message": interruption_message,
+        "remaining_csv": remaining_csv,
+    }

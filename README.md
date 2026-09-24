@@ -8,6 +8,7 @@ A community-built web app for generating personalized certificates and sending t
 - Preview the real rendered certificate before sending.
 - Upload a CSV or select a mailing list already saved in the browser.
 - Send personalized HTML email with a unique verification link per recipient.
+- Pause after delivery errors and resume the unsent recipients from the same browser.
 - Verify certificates with signed, stateless links without a database.
 - Keep Gmail credentials and mailing lists in browser local storage; they are not stored by the server.
 
@@ -41,6 +42,8 @@ aws-sbgl-certs
 
 Use a Gmail App Password rather than a normal Gmail password. Credentials are entered in the browser and kept only in local storage for that browser.
 
+Email delivery waits two seconds between recipients by default. Set `SGB_EMAIL_DELAY_SECONDS` to change the delay. If delivery fails, the remaining recipients and certificate are saved in that browser and can be resumed from the compose page. The saved state is cleared after a successful completion.
+
 ## Project Structure
 
 ```text
@@ -65,6 +68,8 @@ icons/                  AWS SBG project icons
 ## Stateless Verification
 
 The dispatcher signs the recipient name, event, and issue date with `webapp/algo/linkGenerator.py`. The resulting token is appended to `/verify/<token>`. The verification page decodes and validates the token directly, so no certificate database is required.
+
+Verification links use `https://aws-sbg-ieccet.antideploy.com` by default. Set `CERTIFICATE_PUBLIC_URL` when deploying under another public origin.
 
 For production deployments, replace `DEFAULT_SECRET_KEY` in `webapp/algo/linkGenerator.py` with a private, stable deployment secret. Changing it invalidates previously generated links.
 
