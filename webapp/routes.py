@@ -94,3 +94,6 @@ def register_routes(app):
             return jsonify(dispatch_certificates(credentials, details, list_file, certificate_file))
         except ValueError as error:
             return jsonify({"error": str(error)}), 400
+        except Exception as error:
+            app.logger.exception("Certificate dispatch failed")
+            return jsonify({"error": f"Certificate dispatch failed: {error}"}), 502

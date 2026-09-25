@@ -12,12 +12,13 @@ from pathlib import Path
 from flask import request
 
 from certificate import create_certificate
-from email_sender import send_email
+from email_sender import TemporaryEmailError, open_smtp_connection, send_email
 from webapp.algo import DEFAULT_SECRET_KEY, generate_certificate_link
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_BASE_URL = os.getenv("CERTIFICATE_PUBLIC_URL", "https://aws-sbg-ieccet.antideploy.com")
 EMAIL_DELAY_SECONDS = float(os.getenv("SGB_EMAIL_DELAY_SECONDS", "2"))
+SMTP_RETRY_DELAYS = (5, 15, 30)
 
 
 def parse_recipients(file_storage):
@@ -60,6 +61,33 @@ def render_preview(template_storage):
         return image_data_url(preview_path)
 
 
+def send_with_retries(credentials, sender_name, email, subject, html_body, attachment_path, smtp):
+    for attempt, delay in enumerate((0, *SMTP_RETRY_DELAYS)):
+        if delay:
+            print(f"Temporary SMTP failure for {email}; retrying in {delay} seconds.")
+            time.sleep(delay)
+            try:
+                smtp = open_smtp_connection(credentials["email"], credentials["password"])
+            except Exception as error:
+                print(f"Could not reconnect to Gmail while retrying {email}: {error}")
+                return False, None
+        try:
+            delivered = send_email(
+                credentials["email"], credentials["password"], sender_name,
+                email, subject, html_body, attachment_path, smtp,
+            )
+            return delivered, smtp
+        except TemporaryEmailError as error:
+            if attempt == len(SMTP_RETRY_DELAYS):
+                print(f"Temporary SMTP failure persisted for {email}: {error}")
+                return False, smtp
+            try:
+                smtp.quit()
+            except Exception:
+                pass
+    return False, smtp
+
+
 def dispatch_certificates(credentials, details, list_file, certificate_file):
     rows = parse_recipients(list_file)
     sent, failed = 0, []
@@ -70,37 +98,49 @@ def dispatch_certificates(credentials, details, list_file, certificate_file):
     with tempfile.TemporaryDirectory(prefix="sbg-dispatch-") as temp_dir:
         template_path = Path(temp_dir) / "template.png"
         certificate_file.save(template_path)
-        for index, row in enumerate(rows):
-            name, email = row.get("name", "").strip(), row.get("email", "").strip()
-            if not name or not email:
-                continue
-            certificate_id = secrets.token_urlsafe(12)
-            output_path = Path(temp_dir) / f"{certificate_id}.png"
-            if not create_certificate(name, str(template_path), str(output_path)):
-                failed.append(email)
-                continue
-            html_body = body_to_html(details["body"])
-            html_body = html_body.replace("{{full_name}}", html.escape(name)).replace("{{first_name}}", html.escape(name.split()[0]))
-            html_body = html_body.replace("{{event_name}}", html.escape(details["event_name"])).replace("{{issue_date}}", issued)
-            link = generate_certificate_link(
-                f"{PUBLIC_BASE_URL.rstrip('/')}/verify",
-                name,
-                issued,
-                details["event_name"],
-                DEFAULT_SECRET_KEY,
-            )
-            html_body += f'<p style="margin-top:24px;font-size:12px;color:#667085">Verify Certificate at <a href="{link}">{link}</a></p>'
-            html_body += '<p style="margin:24px 0 0"><img src="cid:certificate-image" alt="Your certificate" style="display:block;max-width:100%;height:auto"></p>'
-            if send_email(credentials["email"], credentials["password"], credentials["name"], email, details["subject"], html_body, str(output_path)):
-                sent += 1
-                if index < len(rows) - 1:
-                    time.sleep(EMAIL_DELAY_SECONDS)
-            else:
-                failed.append(email)
-                interrupted = True
-                interruption_message = f"Delivery stopped after an error sending to {email}."
-                remaining_csv = recipients_to_csv(rows[index:])
-                break
+        smtp = open_smtp_connection(credentials["email"], credentials["password"])
+        try:
+            for index, row in enumerate(rows):
+                name, email = row.get("name", "").strip(), row.get("email", "").strip()
+                if not name or not email:
+                    continue
+                certificate_id = secrets.token_urlsafe(12)
+                output_path = Path(temp_dir) / f"{certificate_id}.png"
+                if not create_certificate(name, str(template_path), str(output_path)):
+                    failed.append(email)
+                    continue
+                html_body = body_to_html(details["body"])
+                html_body = html_body.replace("{{full_name}}", html.escape(name)).replace("{{first_name}}", html.escape(name.split()[0]))
+                html_body = html_body.replace("{{event_name}}", html.escape(details["event_name"])).replace("{{issue_date}}", issued)
+                link = generate_certificate_link(
+                    f"{PUBLIC_BASE_URL.rstrip('/')}/verify",
+                    name,
+                    issued,
+                    details["event_name"],
+                    DEFAULT_SECRET_KEY,
+                )
+                html_body += f'<p style="margin-top:24px;font-size:12px;color:#667085">Verify Certificate at <a href="{link}">{link}</a></p>'
+                html_body += '<p style="margin:24px 0 0"><img src="cid:certificate-image" alt="Your certificate" style="display:block;max-width:100%;height:auto"></p>'
+                delivered, smtp = send_with_retries(
+                    credentials, credentials["name"], email, details["subject"],
+                    html_body, str(output_path), smtp,
+                )
+                if delivered:
+                    sent += 1
+                    if index < len(rows) - 1:
+                        time.sleep(EMAIL_DELAY_SECONDS)
+                else:
+                    failed.append(email)
+                    interrupted = True
+                    interruption_message = f"Delivery stopped after an error sending to {email}."
+                    remaining_csv = recipients_to_csv(rows[index:])
+                    break
+        finally:
+            if smtp is not None:
+                try:
+                    smtp.quit()
+                except Exception:
+                    pass
     return {
         "sent": sent,
         "total": len(rows),
